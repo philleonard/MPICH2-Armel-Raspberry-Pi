@@ -12,6 +12,8 @@ global rem_file
 global loc_file
 global message
 global user
+global master_ip
+global ret_ip
 
 def this_ip(ifname):
 	soc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -22,6 +24,7 @@ def dlProgress(count, blockSize, totalSize):
 	sys.stdout.write("\r" + message + "%d%%]" % percent)
 	sys.stdout.flush()
 
+#Future: Combine following define "insert" methods
 def insertRootRhost():
 	master_in_file = False
 	slave_in_file = False
@@ -38,6 +41,16 @@ def insertRootRhost():
 		if slave_in_file == False:
 			rhosts.write("\nSlave " + this_user)
 
+def insertMasterRhost(master_user_add):
+	directory = "/home/" + master_user_add + "/.rhosts"
+	master_in_file = False
+	for line in open(directory):
+		if "Master " + master_user_add in line:
+			master_in_file = True
+	with open(directory, "a") as rhosts:
+		if master_in_file == False:
+			rhosts.write("\nMaster " + master_user_add)
+	
 def insertUserRhost(user_add):
 	directory = "/home/" + user + "/.rhosts"
 	slave_in_file = False
@@ -88,6 +101,42 @@ def insertSectretty():
 	with open(directory, "a") as securetty:
 		if securetty_in_file == False:
 			securetty.write("\n" + securetty_root_string)
+			
+def getIP():
+	getting_ip = True
+	adap_count = 0
+	wlan_test = False
+	while getting_ip:
+		if wlan_test == False:
+			adaptor = "eth" + str(adap_count)
+		else:
+			adaptor = "wlan" + str(adap_count)
+
+		print "Trying connection on " + adaptor + "..."
+		try:
+			ret_ip = this_ip(adaptor)
+			print "Connection found on " + adaptor
+			getting_ip = False
+		except IOError:
+			print "Error: Failed on eth" + adap_count
+		if adap_count == 5:
+			adap_count = 0
+			if wlan_test == False:
+				wlan_test = True
+			else:
+				new_adap = True
+				new_adap_name = raw_input("Error: Cannot find connection. Specify adaptor name:")
+				while new_adap:
+					try: 
+						ret_ip = this_ip(new_adap_name)
+						new_adap = False
+						getting_ip = False
+						print "Connection found on " + new_adap_name
+					except IOError:
+						new_adap_name = raw_input("Error: Cannot find specified adaptor. Specify another or type \"c\" to exit:")
+						if new_adap_name == "c":
+							sys.exit()
+		return ret_ip
 
 def insertRshContent():
 	auth1_text = "auth sufficient /lib/security/pam_nologin.so"
@@ -178,26 +227,9 @@ while master_slave not in ["M", "S"]:
 	master_slave = raw_input("Error: \"" + master_slave + "\" not a selection. Is this the Master or a Slave node? [M/S]: ")
 
 if master_slave in "M":
-
+	insertMasterRhost(user)
 	insertRootRhost()
-	
-	getting_ip = True
-	adaptor_selection = raw_input("Connected through ethernet or wireless? [E/W]: ")
-	while getting_ip:
-		try:
-			if adaptor_selection == "E":
-				master_ip = this_ip("eth0")
-				getting_ip = False
-			elif adaptor_selection == "W":
-				master_ip = this_ip("wlan0")
-				getting_ip = False
-			else:
-				master_slave = raw_input("Error: \"" + adaptor_selection + "\" not a selection. Connected through ethernet or wireless? [E/W]: ")
-		except IOError:
-			if adaptor_selection == "E":
-				adaptor_selection = raw_input("Error: eth0 device not found. Connected through ethernet or wireless? [E/W]: ")	
-			elif adaptor_selection == "W":
-				adaptor_selection = raw_input("Error: wlan0 device not found. Connected through ethernet or wireless? [E/W]: ")	
+	master_ip = getIP()
 	insertMasterHost(master_ip)			
 	print "IP address is: " + master_ip
 	print ""
@@ -216,7 +248,6 @@ if master_slave in "M":
 	
 	print ""	
 	count = 0
-	ip_list = []
 	while count < loop_count:
 		if count == 0:
 			current_usr = raw_input("Enter username for first Slave node: ")
@@ -238,7 +269,7 @@ if master_slave in "M":
 					bad_ip = True
 			except socket.error:
 				bad_ip = True
-		#use current_usr and current_ip to add to hosts file
+		
 		insertUserHost(current_ip)
 		insertUserRhost(current_usr)
 		insertHostAllow(current_ip)
@@ -246,23 +277,90 @@ if master_slave in "M":
 		print ""
 		count += 1
 	
-
-#elif master_slave in "S":	
+elif master_slave in "S":	
+	insertRootRhost()
+	this_slave_ip = getIP()	
+	print "IP address is: " + this_slave_ip
+	print ""
+	master_user = raw_input("Master node username: ")
+	master_ip = raw_input("Master node IP address: ")
 	
+	insertMasterRhost(master_user)
+	insertMasterHost(master_ip)
+	insertUserHost(this_slave_ip)
+	insertHostAllow(master_ip)
+	
+	done = False
+	Error = False
+	while True:
+		try:
+			if Error == False:
+				loop_count = int(raw_input("Enter number other Slave nodes (not including this node): "))
+			else:
+				loop_count = int(raw_input("Error: Not a number. Enter number of Slave nodes (not including this node): "))
+			break
+		except ValueError:
+			Error = True
+	
+	print ""	
+	count = 0
+	while count < loop_count:
+		if count == 0:
+			current_usr = raw_input("Enter username for first Slave node (not including this node): ")
+		else:
+			current_usr = raw_input("Enter username for next Slave node (not including this node): ")
+			
+		ip_valid = False
+		bad_ip = False
+		while ip_valid == False:
+			if bad_ip == True:
+				current_ip = raw_input("Error: Invalid IPv4 address. Enter IP for Slave node " + current_usr + ": ")
+			else:
+				current_ip = raw_input("Enter IP for Slave node " + current_usr + ": ")
+			try:
+				socket.inet_aton(current_ip)
+				if len(current_ip.split(".")) == 4:
+					ip_valid = True
+				else:
+					bad_ip = True
+			except socket.error:
+				bad_ip = True
 		
-sys.stdout.write("Downloading MPICH2 .deb package [0%]")	
-sys.stdout.flush()
-message = "Downloading MPICH2 .deb package ["
-rem_file = "https://github.com/downloads/philleonard/MPICH2-Armel-Raspberry-Pi/mpich2_1.4.1p1-1_armel.deb"
-loc_file = "/home/"+ user + "/mpich2_1.4.1p1-1_armel.deb"
-urllib.urlretrieve(rem_file, loc_file, reporthook=dlProgress)
-print ""
-print "Successfully downloaded package\n" 
+	insertUserHost(current_ip)
+	insertUserRhost(current_usr)
+	insertHostAllow(current_ip)
+		
+	
+if not os.path.isfile("/home/" + user + "/mpich2_1.4.1p1-1_armel.deb"):
+	sys.stdout.write("Downloading MPICH2 .deb package [0%]")	
+	sys.stdout.flush()
+	message = "Downloading MPICH2 .deb package ["
+	rem_file = "https://github.com/downloads/philleonard/MPICH2-Armel-Raspberry-Pi/mpich2_1.4.1p1-1_armel.deb"
+	loc_file = "/home/" + user + "/mpich2_1.4.1p1-1_armel.deb"	
+	urllib.urlretrieve(rem_file, loc_file, reporthook=dlProgress)
+	print ""
+	print "Successfully downloaded package\n" 
+else:
+	print "Skipping download. mpich2_1.4.1p1-1_armel.deb already exists.\n" 
 
 print "Depackaging and installing .deb..."
 dpkg = Popen(["sudo", "dpkg", "-i", "mpich2_1.4.1p1-1_armel.deb"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 c4 = dpkg.wait()
-
 print "Successfully installed package\n"
 
+if not os.path.isfile("/home/" + user + "/cpi_test.tar.gz"):
+	sys.stdout.write("Downloading C test files tarball: [0%]")	
+	sys.stdout.flush()
+	message = "Downloading C test files tarball: ["
+	rem_file = "https://github.com/downloads/philleonard/MPICH2-Armel-Raspberry-Pi/cpi_test.tar.gz"
+	loc_file = "/home/" + user + "/cpi_test.tar.gz"
+	urllib.urlretrieve(rem_file, loc_file, reporthook=dlProgress)
+	print ""
+	print "Successfully downloaded cpi_test.tar.gz\n" 
+else:
+	print "Skipping download. cpi_test.tar.gz already exists.\n"	
 
+print "Untaring cpi_test.tar.gz..."
+untar = Popen(["tar", "-zxvf", "/home/" + user + "/cpi_test.tar.gz"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+untarWait = untar.wait()
+print "Successfully extracted test files."

@@ -243,7 +243,7 @@ if master_slave in "M":
 			else:
 				loop_count = int(raw_input("Error: Not a number. Enter number of Slave nodes: "))
 			break
-		except ValueError:
+		except except (SyntaxError, ValueError, NameError):
 			Error = True
 	
 	print ""	
@@ -295,20 +295,20 @@ elif master_slave in "S":
 	while True:
 		try:
 			if Error == False:
-				loop_count = int(raw_input("Enter number other Slave nodes (not including this): "))
+				loop_count = int(raw_input("Enter number other Slave nodes (not including this node): "))
 			else:
-				loop_count = int(raw_input("Error: Not a number. Enter number of Slave nodes (not including this): "))
+				loop_count = int(raw_input("Error: Not a number. Enter number of Slave nodes (not including this node): "))
 			break
-		except ValueError:
+		except (SyntaxError, ValueError, NameError):
 			Error = True
 	
 	print ""	
 	count = 0
 	while count < loop_count:
 		if count == 0:
-			current_usr = raw_input("Enter username for first Slave node: ")
+			current_usr = raw_input("Enter username for first Slave node (not including this node): ")
 		else:
-			current_usr = raw_input("Enter username for next Slave node: ")
+			current_usr = raw_input("Enter username for next Slave node (not including this node): ")
 			
 		ip_valid = False
 		bad_ip = False
