@@ -243,7 +243,7 @@ if master_slave in "M":
 			else:
 				loop_count = int(raw_input("Error: Not a number. Enter number of Slave nodes: "))
 			break
-		except ValueError:
+		except except (SyntaxError, ValueError, NameError):
 			Error = True
 	
 	print ""	
@@ -299,7 +299,7 @@ elif master_slave in "S":
 			else:
 				loop_count = int(raw_input("Error: Not a number. Enter number of Slave nodes (not including this node): "))
 			break
-		except ValueError:
+		except (SyntaxError, ValueError, NameError):
 			Error = True
 	
 	print ""	

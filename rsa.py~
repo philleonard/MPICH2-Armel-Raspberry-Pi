@@ -78,6 +78,6 @@ while done == False:
 		print "Error: Connection failed. Check correct username and IP address and try again."
 	else:
 		x += 1
-		print "\nRSA key access successfully setup between Master and " + username + "@" + ip
+		print "\nRSA key access successfully setup between " + this_user + "@" + this_ip("eth0") + " and " + username + "@" + ip
 	if x == count:
 		break

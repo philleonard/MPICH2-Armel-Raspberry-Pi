@@ -243,7 +243,7 @@ if master_slave in "M":
 			else:
 				loop_count = int(raw_input("Error: Not a number. Enter number of Slave nodes: "))
 			break
-		except except (SyntaxError, ValueError, NameError):
+		except (SyntaxError, ValueError, NameError):
 			Error = True
 	
 	print ""	
@@ -292,15 +292,30 @@ elif master_slave in "S":
 	
 	done = False
 	Error = False
+	not_answer = False
 	while True:
-		try:
-			if Error == False:
-				loop_count = int(raw_input("Enter number other Slave nodes (not including this node): "))
-			else:
-				loop_count = int(raw_input("Error: Not a number. Enter number of Slave nodes (not including this node): "))
+		if not not_answer: 
+			other_nodes = raw_input("\nIs this the only Slave node? [Y/N]: ")
+		else: 
+			other_nodes = raw_input("Error: " + other_nodes + " not an selection. Is this the only Slave node? [Y/N]: ")
+		if other_nodes == "N":
+			while True:
+				try:
+					if Error == False:
+						loop_count = int(raw_input("Enter number of other Slave nodes (not including this node): "))
+					else:
+						loop_count = int(raw_input("Error: Not a number. Enter number of Slave nodes (not including this node): "))
+					break
+				except (SyntaxError, ValueError, NameError):
+					Error = True
 			break
-		except (SyntaxError, ValueError, NameError):
-			Error = True
+			
+		elif other_nodes == "Y":
+			loop_count = 0
+			break
+
+		else:
+			not_answer = True
 	
 	print ""	
 	count = 0
@@ -325,10 +340,11 @@ elif master_slave in "S":
 					bad_ip = True
 			except socket.error:
 				bad_ip = True
-		
-	insertUserHost(current_ip)
-	insertUserRhost(current_usr)
-	insertHostAllow(current_ip)
+		insertUserHost(current_ip)
+		insertUserRhost(current_usr)
+		insertHostAllow(current_ip)
+		print ""
+		count += 1
 		
 	
 if not os.path.isfile("/home/" + user + "/mpich2_1.4.1p1-1_armel.deb"):
@@ -364,3 +380,4 @@ print "Untaring cpi_test.tar.gz..."
 untar = Popen(["tar", "-zxvf", "/home/" + user + "/cpi_test.tar.gz"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 untarWait = untar.wait()
 print "Successfully extracted test files."
+print "\nInstallation on this node complete!"
